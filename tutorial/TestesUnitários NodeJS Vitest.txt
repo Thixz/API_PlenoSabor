@@ -1,0 +1,33 @@
+Instalar a lib vitest e suas extensoes como dev dependencie vitest @vitest/coverage-v8 @vitest/ui vite-tsconfig-paths -D
+
+Na raiz do projeto criar um arquivo vite.config.ts
+
+import { defineConfig } from "vitest/config";
+import tsConfigPaths from "vite-tsconfig-paths";
+
+export default defineConfig({
+  plugins: [tsConfigPaths()],
+  test: {
+    globals: true,
+  },
+});
+
+
+
+Em tsconfig.json descomentar e adicionar:
+"types": ["vitest/globals"]
+
+
+
+Criar os scripts em package.json
+
+    "test": "vitest run --dir src/modules",
+    "test:e2e": "cross-env NODE_ENV=localdevelopment vitest run --dir src/http",
+    "test:watch": "vitest",
+    "test:coverage": "cross-env NODE_ENV=localdevelopment vitest run --coverage"
+
+
+
+Exemplos de testes unitários nas services.
+
+

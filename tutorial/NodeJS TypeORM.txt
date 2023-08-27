@@ -1,0 +1,329 @@
+Criar uma pasta para a API
+
+Iniciar o projeto com npm init -y
+
+Criar uma pasta src e dentro da pasta src criar dois arquivos app.ts e server.ts
+
+Instalar a lib express e suas tipagens npm i express
+
+Instalar o typescript e tipos express -D
+
+Adicionar o tsconfig.json com o comando tsc --init e descomentar o 
+“experimentalDecorators: true”, “emitDecoratorMetadata: true”, “resolveJsonModule: true” 
+e “outDir” e escrever ./dist e comentar o “strict: true”;
+
+Adicionar o pacote “ts-node-dev” -D
+
+script para iniciar o projeto ts-node-dev --inspect --transpile-only --poll 
+--ignore-watch node_modules --respawn src/server.ts
+
+Entrar no Debugger, clicar em “create a launch.json file” e clica em “Node.js”. 
+Configurar o “launch.json”, mudar o “request”: “attach” e deletar a linha “programm”;
+
+Dentro do app.ts importar a função express da  biblioteca express, utilizar o express.json, e criar a porta que a API vai escutar.
+
+import express, { NextFunction, Request, Response } from "express";
+import swaggerUi from "swagger-ui-express";
+import swaggerFile from "./swagger.json";
+import { DefaultResponse } from "./utils/DefaultResponse";
+import { ZodError } from "zod";
+import { createConnection } from "./database/data-source";
+import "express-async-errors";
+import "./database/data-source";
+import "./global/tsyringeContainer"
+
+export const app = express();
+
+app.use(express.json());
+
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerFile));
+
+app.use(routes);
+
+app.use((error, request: Request, response: Response, next: NextFunction) => {
+  if (error instanceof DefaultResponse) {
+    return response.status(error.status).json(error);
+  }
+
+  if (error instanceof ZodError) {
+    return response.status(400).json(error.format());
+  }
+
+  return response.status(500).json({
+    status: "error",
+    message: `Internal server error: ${error.message}`,
+  });
+});
+
+createConnection();
+
+
+
+Instalar as libs swagger-ui-express e @types/swagger-ui-express -D
+
+Adicionar um arquivo src/swagger.json 
+
+Instalar a lib de verificação zod
+
+Instalar o express-async-errors
+
+Criar uma pasta src/utils e criar o arquivo DefaultResponse.ts
+
+export class DefaultResponse {
+  readonly data: any;
+  readonly success: boolean;
+  readonly status?: number;
+
+  constructor(data, success, status = 400) {
+    this.data = data;
+    this.success = success;
+    this.status = status;
+  }
+}
+
+
+Implementar o docker na aplicação
+
+criar um arquivo .dockerignore 
+node_modules
+.git
+.vscode
+
+Criar um arquivo dockerfile
+FROM node
+    
+WORKDIR /usr/app
+
+COPY package.json ./
+
+RUN npm install 
+
+COPY . .
+
+EXPOSE 3333
+
+CMD ["npm","run","dockerdev"]
+
+
+Criar um docker-compose.yml
+version: "3.7"
+
+services:
+  nome_database:
+    image: postgres
+    container_name: nome_database
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=senha
+      - POSTGRES_DB=database
+    volumes:
+      - pgdata:/data/postgres
+  app:
+    build: .
+    container_name: nomedatabase
+    ports:
+      - 3333:3333
+    volumes:
+      - .:/usr/app
+    links:
+      - nome_database
+    depends_on:
+      - nome_database
+
+volumes:
+  pgdata:
+    driver: local
+
+
+Instalar o postgres no projeto pg
+
+Instalar o typeorm
+
+Criar uma pasta ”database” dentro de “src” criar o aquivo “data-source.ts” e codar
+
+import { DataSource } from "typeorm";
+
+export const dataSource = new DataSource({
+    type: "postgres",
+    port: 5432,
+    username: "user",
+    password: "senha",
+    database: "database",
+    entities: [],
+    migrations: [
+    ],
+  });
+  
+  export async function createConnection(database? : string,host = "localhost") {
+    return await dataSource
+      .setOptions({
+        host : process.env.NODE_ENV == "localdevelopment" ? host : "nome_database",
+        database: database ?? "database"
+      })
+      .initialize()
+      .then(() => {
+        console.log("Database was initialized");
+        return dataSource
+      })
+      .catch((error) => {
+        console.log(`Connection error : ${error}`);
+        throw new Error(error);
+      });
+  }
+  ``;
+
+
+Codar em server.ts
+
+import { app } from "./app";
+
+app.listen(3333, () => {
+    console.log("Application listening at port 3333");
+  });
+
+Instalar a lib cross-env -D
+
+
+Criar os scripts/ alterar o dev
+
+    "dev": "cross-env NODE_ENV=localdevelopment ts-node-dev --inspect --transpile-only --poll --ignore-watch node_modules --respawn src/server.ts",
+    "dockerdev": "ts-node-dev --inspect --transpile-only --poll --ignore-watch node_modules --respawn src/server.ts",
+    "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
+    "migration:create": "node scripts/migration-create.js",
+    "migration:run": "yarn typeorm migration:run"
+
+Criar uma pasta scripts/migration-create.js na raiz do projeto e codar
+#!/usr/bin/env node
+
+const yargs = require("yargs");
+const { execSync } = require("child_process");
+
+// Parse the command-line arguments
+const {
+  _: [name],
+  path,
+} = yargs.argv;
+
+// Construct the migration path
+const migrationPath = `src/database/migrations/${name}`;
+
+// Run the typeorm command
+execSync(`typeorm migration:create ${migrationPath}`, { stdio: "inherit" });
+
+
+Criar a primeira migration com npm run migration:create nomedamigration(create_user_table)
+
+
+import { MigrationInterface, QueryRunner, Table } from "typeorm";
+
+export class CreateMmrTable1692205079094 implements MigrationInterface {
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.createTable(
+      new Table({
+        name: "Mmr",
+        columns: [
+          {
+            name: "friend_id",
+            type: "uuid",
+            isPrimary: true,
+          },
+          {
+            name: "friend_name",
+            type: "varchar",
+          },
+          {
+            name: "money",
+            type: "real",
+          },
+          {
+            name: "isActive",
+            type: "boolean",
+          },
+        ],
+      })
+    );
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.dropTable("Mmr");
+  }
+}
+
+
+
+Criar src/modules/nome do Modules/entities - criar entidade
+
+
+import { Column, Entity, PrimaryColumn } from "typeorm";
+import {v4 as uuidV4} from "uuid"; 
+
+@Entity("Mmr")
+export class Mmr {
+    constructor(){
+        if (!this.friend_id){
+            this.friend_id = uuidV4();
+        }
+    }
+
+    @PrimaryColumn('text',{nullable:false})
+    friend_id: string;
+
+    @Column('text',{nullable:false})
+    friend_name: string;
+    
+    @Column('numeric',{nullable:false})
+    money: number;
+
+    @Column('boolean',{nullable:false})
+    isActive: boolean;
+}
+
+
+instalar a lib uuid
+
+
+Construir a parte lógica services e inMemoryRepositories para testar   (documento teste com vitest)
+
+
+
+Começar a construir os repositorios TypeORM que vão ao banco
+
+import { Repository } from "typeorm";
+import { IMmrRepository } from "./IMmr-repository";
+import { Mmr } from "../entities/Mmr";
+import { dataSource } from "../../../database/data-source";
+
+export class MmrTypeOrmRepository implements IMmrRepository {
+  private repository: Repository<Mmr>;
+  constructor() {
+    this.repository = dataSource.getRepository(Mmr);
+  }
+}
+
+
+Fzer as injeções de dependência com o tsyringe
+
+instalar tsyringe
+
+em utils/tsyringeContainer/index.ts
+
+em app.ts import antes de tudo
+
+import "./utils/tsyringeContainer"
+
+
+Em services
+
+import "reflect-metadata"
+
+@injectable()
+export class CreateMmrService {
+  constructor(@inject("MmrRepository") private mmrRepository: IMmrRepository) {}
+
+
+Criar as controllers com zod
+
+
+
